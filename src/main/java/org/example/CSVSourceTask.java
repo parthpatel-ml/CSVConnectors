@@ -34,7 +34,7 @@ public class CSVSourceTask extends SourceTask {
         if (offset != null) {
             Object offsetValue = offset.get("position");
             if (offsetValue != null) {
-                currentOffset = (int) offsetValue; // Set the starting offset
+                currentOffset = ((Long) offsetValue).intValue(); // Set the starting offset
             }
         }
     }
