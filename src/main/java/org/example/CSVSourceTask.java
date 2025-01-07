@@ -16,8 +16,7 @@ import java.util.Map;
 public class CSVSourceTask extends SourceTask {
     private String filePath;
     private String topic;
-    private int currentOffset = 0;
-    Long currentLine;
+    private int currentOffset = 0; // Default offset in case no prior offset is found.
 
     @Override
     public String version() {
@@ -28,11 +27,15 @@ public class CSVSourceTask extends SourceTask {
     public void start(Map<String, String> props) {
         filePath = props.get("file.path");
         topic = props.get("topic");
-        Map<String, Object> offset = context.offsetStorageReader().offset(Collections.singletonMap("file", filePath));
+
+        // Retrieve the last saved offset using the Kafka Connect offset storage mechanism
+        Map<String, Object> offset = context.offsetStorageReader()
+                .offset(Collections.singletonMap("file", filePath));
         if (offset != null) {
-            currentLine = (Long) offset.getOrDefault("line", 0L);
-        } else {
-            currentLine = 0L;
+            Object offsetValue = offset.get("position");
+            if (offsetValue != null) {
+                currentOffset = (int) offsetValue; // Set the starting offset
+            }
         }
     }
 
@@ -54,9 +57,13 @@ public class CSVSourceTask extends SourceTask {
                             .put("column1", row[0])  // Map CSV columns to your schema fields
                             .put("column2", row[1]);
 
+                    // Create a source offset for this record
+                    Map<String, Object> sourcePartition = Collections.singletonMap("file", filePath);
+                    Map<String, Object> sourceOffset = Collections.singletonMap("position", offset);
+
                     SourceRecord record = new SourceRecord(
-                            null, // topic partition (null if default)
-                            null, // source offset (optional)
+                            sourcePartition, // topic partition (null if default)
+                            sourceOffset, // source offset (optional)
                             topic, // target Kafka topic
                             null, // schema for the key (optional)
                             schema, // schema for the value
